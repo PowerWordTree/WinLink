@@ -1,8 +1,9 @@
 ::符号链接管理
 ::@author FB
-::@version 0.1.0
+::@version 0.2.0
 
 ::Script:Argument.Parser.CMD::
+::Script:Common.Echo.CMD::
 ::Script:Common.IsAdmin.CMD::
 ::Script:Config.FileRead.CMD::
 ::Script:File.HasAttrib.CMD::
@@ -64,7 +65,7 @@ IF /I "%_ARG.OPTION.H%" == "TRUE" (
 )
 ::选择菜单
 ECHO.
-ECHO ***** 注意: 错误操作可能对系统造成破坏! *****
+CALL Common.Echo.CMD "93" "***** 注意: 错误操作可能破坏系统! *****"
 ECHO.
 ECHO 1:创建符号链接
 ECHO 2:移除符号链接
@@ -83,7 +84,7 @@ ECHO.
 ECHO 配置文件: %_CONFIG%
 IF NOT EXIST "%_CONFIG%" (
   ECHO.
-  ECHO ***** 错误, 配置文件不存在! *****
+  CALL Common.Echo.CMD "93;41" "***** 错误: 配置文件不存在! *****"
   SET /A "_EXIT_CODE=-1"
   GOTO :EXIT
 )
@@ -95,7 +96,7 @@ CALL Config.FileRead.CMD "_CONFIG" "%%_CONFIG%%"
 ::检查管理员权限
 CALL Common.IsAdmin.CMD || (
   ECHO.
-  ECHO ***** 错误, 需要管理员权限! *****
+  CALL Common.Echo.CMD "93;41" "***** 错误: 需要管理员权限! *****"
   SET /A "_EXIT_CODE=-1"
   GOTO :EXIT
 )
@@ -148,7 +149,7 @@ IF EXIST "%_LINK%" (
   IF /I "%_EXISTED%" == "Backup" (
     MOVE /Y "%_LINK%" "%_LINK%.BACKUP" 1>NUL || (
       ECHO.
-      ECHO ***** 错误, 备份`Target`失败! *****
+      CALL Common.Echo.CMD "93;41" "***** 错误: 备份`Target`失败! *****"
       EXIT /B 1
     )
   ) ELSE IF /I "%_EXISTED%" == "Override" (
@@ -159,28 +160,28 @@ IF EXIST "%_LINK%" (
     )
     CALL %%_COMMAND%% "%%_LINK%%" 1>NUL || (
       ECHO.
-      ECHO ***** 错误, 删除`Target`失败! *****
+      CALL Common.Echo.CMD "93;41" "***** 错误: 删除`Target`失败! *****"
       EXIT /B 1
     )
   ) ELSE IF /I "%_EXISTED%" == "Skip" (
     ECHO.
-    ECHO 目标已经存在, 跳过.
+    CALL Common.Echo.CMD "94" "已经存在, 跳过."
     EXIT /B 0
   ) ELSE (
     ECHO.
-    ECHO ***** 错误, 无法识别`Existed`参数! *****
+    CALL Common.Echo.CMD "93;41" "***** 错误: 无法识别`Existed`参数! *****"
     EXIT /B 1
   )
 ) ELSE IF NOT EXIST "%_LINK%\.." (
   MKDIR "%_LINK%\.." 1>NUL || (
     ECHO.
-    ECHO ***** 错误, 创建`Target`上级目录失败! *****
+    CALL Common.Echo.CMD "93;41" "***** 错误: 创建`Target`上级目录失败! *****"
     EXIT /B 1
   )
 )
 ::创建链接
 IF /I "%_TYPE%" == "SymbolicLink" (
-  IF EXIST "%_LINK%\" (
+  IF EXIST "%_TARGET%\" (
     SET "_COMMAND=MKLINK /D"
   ) ELSE (
     SET "_COMMAND=MKLINK"
@@ -191,16 +192,16 @@ IF /I "%_TYPE%" == "SymbolicLink" (
   SET "_COMMAND=MKLINK /H"
 ) ELSE (
   ECHO.
-  ECHO ***** 错误, 无法识别`Type`参数! *****
+  CALL Common.Echo.CMD "93;41" "***** 错误: 无法识别`Type`参数! *****"
   EXIT /B 1
 )
 CALL %%_COMMAND%% "%%_LINK%%" "%%_TARGET%%" 1>NUL || (
   ECHO.
-  ECHO ***** 错误, 创建链接失败! *****
+  CALL Common.Echo.CMD "93;41" "***** 错误: 创建链接失败! *****"
   EXIT /B 1
 )
 ECHO.
-ECHO 操作完成.
+CALL Common.Echo.CMD "92" "操作完成."
 EXIT /B 0
 
 ::::::::::::
@@ -221,21 +222,21 @@ EXIT /B 0
   )
   CALL %%_COMMAND%% "%%_LINK%%" 1>NUL || (
     ECHO.
-    ECHO ***** 错误, 删除`Target`失败! *****
+    CALL Common.Echo.CMD "93;41" "***** 错误: 删除`Target`失败! *****"
     EXIT /B 1
   )
   IF /I "%_EXISTED%" == "Backup" IF EXIST "%_LINK%.BACKUP" (
     MOVE /Y "%_LINK%.BACKUP" "%_LINK%" 1>NUL || (
       ECHO.
-      ECHO ***** 错误, 恢复`Target`失败! *****
+      CALL Common.Echo.CMD "93;41" "***** 错误: 恢复`Target`失败! *****"
       EXIT /B 1
     )
   )
 ) || (
   ECHO.
-  ECHO 目标不是链接, 跳过.
+  CALL Common.Echo.CMD "94" "不是链接, 跳过."
   EXIT /B 0
 )
 ECHO.
-ECHO 操作完成.
+CALL Common.Echo.CMD "92" "操作完成."
 EXIT /B 0
