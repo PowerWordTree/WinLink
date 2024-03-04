@@ -1,6 +1,6 @@
 ::符号链接管理
 ::@author FB
-::@version 0.2.0
+::@version 1.0.0
 
 ::Script:Argument.Parser.CMD::
 ::Script:Common.Echo.CMD::
@@ -10,24 +10,24 @@
 ::Script:File.IsHardLink.CMD::
 ::Script:Map.ListChild.CMD::
 ::Script:Path.GetAbsolutePath.CMD::
+::Script:Path.GetFileNameExt.CMD::
 ::Script:Path.GetPath.CMD::
 
 ::初始化环境
 @ECHO OFF
 SETLOCAL
-CD /D "%~dp0"
 SET "PATH=%~dp0Bin;%~dp0Script;%PATH%"
-SET /A "_EXIT_CODE=0"
+SET "_EXIT_CODE=0"
 ::输出标题
 ECHO.
 ECHO ============================================
-ECHO =======         符号链接管理          ======
+ECHO =======         符号链接管理         =======
 ECHO ============================================
 ::解析参数
 CALL Argument.Parser.CMD "_ARG" %*
 ::获取配置文件名
 IF "%_ARG.PARAM.0%" == "" (
-  SET "_CONFIG=%~n0.ini"
+  SET "_CONFIG=%~dpn0.ini"
 ) ELSE IF /I "%_ARG.PARAM.0:~-4%" == ".ini" (
   SET "_CONFIG=%_ARG.PARAM.0%"
 ) ELSE (
@@ -81,7 +81,7 @@ IF "%ERRORLEVEL%" == "1" (
 )
 ::读取配置文件
 ECHO.
-ECHO 配置文件: %_CONFIG%
+CALL Common.Echo.CMD "1" "配置文件: %_CONFIG%"
 IF NOT EXIST "%_CONFIG%" (
   ECHO.
   CALL Common.Echo.CMD "93;41" "***** 错误: 配置文件不存在! *****"
@@ -135,108 +135,113 @@ ECHO Link: %_LINK%
 ECHO Target: %_TARGET%
 ECHO Type: %_TYPE%
 ECHO Existed: %_EXISTED%
+ECHO.
 GOTO :EOF
 
 ::::::::::::
 ::操作\链接    存在         不存在
-::Backup       移动,链接    链接
+::Backup       备份,链接    链接
 ::Override     删除,链接    链接
 ::Skip         跳过         链接
 ::::::::::::
 :MAKE_LINK
+::检查链接目标
+IF NOT EXIST "%_TARGET%" (
+  CALL Common.Echo.CMD "93;41" "***** 错误: 链接目标不存在! *****"
+  EXIT /B 1
+)
+::处理链接类型
+IF /I "%_TYPE%" == "SymbolicLink" (
+  IF EXIST "%_TARGET%\" (
+    SET "_MKLINK_ARG=/D"
+  ) ELSE (
+    SET "_MKLINK_ARG="
+  )
+) ELSE IF /I "%_TYPE%" == "Junction" (
+  SET "_MKLINK_ARG=/J"
+) ELSE IF /I "%_TYPE%" == "HardLink" (
+  SET "_MKLINK_ARG=/H"
+) ELSE (
+  CALL Common.Echo.CMD "93;41" "***** 错误: 无法识别`Type`参数! *****"
+  EXIT /B 1
+)
 ::处理链接位置
 IF EXIST "%_LINK%" (
   IF /I "%_EXISTED%" == "Backup" (
-    MOVE /Y "%_LINK%" "%_LINK%.BACKUP" 1>NUL || (
-      ECHO.
-      CALL Common.Echo.CMD "93;41" "***** 错误: 备份`Target`失败! *****"
+    IF EXIST "%_LINK%.BACKUP" CALL :REMOVE "%%_LINK%%.BACKUP" || (
+      CALL Common.Echo.CMD "93;41" "***** 错误: 删除旧备份失败! *****"
+      EXIT /B 1
+    )
+    ::  因为MOVE命令无法处理`丢失目标的软链接`, 只能使用RENAME命令.
+    CALL Path.GetFileNameExt.CMD "%%_LINK%%"
+    CALL RENAME "%%_LINK%%" "%%@%%.BACKUP" 1>NUL || (
+      CALL Common.Echo.CMD "93;41" "***** 错误: 创建备份失败! *****"
       EXIT /B 1
     )
   ) ELSE IF /I "%_EXISTED%" == "Override" (
-    CALL File.HasAttrib.CMD "%%_LINK%%" "D" && (
-      SET "_COMMAND=RMDIR /S /Q"
-    ) || (
-      SET "_COMMAND=DEL /F /Q"
-    )
-    CALL %%_COMMAND%% "%%_LINK%%" 1>NUL || (
-      ECHO.
-      CALL Common.Echo.CMD "93;41" "***** 错误: 删除`Target`失败! *****"
+    CALL :REMOVE "%%_LINK%%" || (
+      CALL Common.Echo.CMD "93;41" "***** 错误: 删除旧链接失败! *****"
       EXIT /B 1
     )
   ) ELSE IF /I "%_EXISTED%" == "Skip" (
-    ECHO.
-    CALL Common.Echo.CMD "94" "已经存在, 跳过."
+    CALL Common.Echo.CMD "94" "跳过执行."
     EXIT /B 0
   ) ELSE (
-    ECHO.
     CALL Common.Echo.CMD "93;41" "***** 错误: 无法识别`Existed`参数! *****"
     EXIT /B 1
   )
 ) ELSE IF NOT EXIST "%_LINK%\.." (
   MKDIR "%_LINK%\.." 1>NUL || (
-    ECHO.
-    CALL Common.Echo.CMD "93;41" "***** 错误: 创建`Target`上级目录失败! *****"
+    CALL Common.Echo.CMD "93;41" "***** 错误: 创建上级目录失败! *****"
     EXIT /B 1
   )
 )
 ::创建链接
-IF /I "%_TYPE%" == "SymbolicLink" (
-  IF EXIST "%_TARGET%\" (
-    SET "_COMMAND=MKLINK /D"
-  ) ELSE (
-    SET "_COMMAND=MKLINK"
-  )
-) ELSE IF /I "%_TYPE%" == "Junction" (
-  SET "_COMMAND=MKLINK /J"
-) ELSE IF /I "%_TYPE%" == "HardLink" (
-  SET "_COMMAND=MKLINK /H"
-) ELSE (
-  ECHO.
-  CALL Common.Echo.CMD "93;41" "***** 错误: 无法识别`Type`参数! *****"
-  EXIT /B 1
-)
-CALL %%_COMMAND%% "%%_LINK%%" "%%_TARGET%%" 1>NUL || (
-  ECHO.
+MKLINK %_MKLINK_ARG% "%_LINK%" "%_TARGET%" 1>NUL || (
   CALL Common.Echo.CMD "93;41" "***** 错误: 创建链接失败! *****"
   EXIT /B 1
 )
-ECHO.
-CALL Common.Echo.CMD "92" "操作完成."
+CALL Common.Echo.CMD "92" "执行完成."
 EXIT /B 0
 
 ::::::::::::
 ::操作\链接     链接    文件    不存在
-::Backup(有)    移动    跳过    跳过
+::Backup(有)    恢复    跳过    跳过
 ::Backup(无)    删除    跳过    跳过
 ::Override      删除    跳过    跳过
 ::Skip          删除    跳过    跳过
 :::::::::::::
 :UNDO_LINK
-::处理链接
-(CALL File.HasAttrib.CMD "%%_LINK%%" "L" ^
-  || CALL File.IsHardLink.CMD "%%_LINK%%") && (
-  CALL File.HasAttrib.CMD "%%_LINK%%" "D" && (
-    SET "_COMMAND=RMDIR /S /Q"
-  ) || (
-    SET "_COMMAND=DEL /F /Q"
-  )
-  CALL %%_COMMAND%% "%%_LINK%%" 1>NUL || (
-    ECHO.
-    CALL Common.Echo.CMD "93;41" "***** 错误: 删除`Target`失败! *****"
+::处理链接位置
+CALL :IS_LINK "%%_LINK%%" && (
+  CALL :REMOVE "%%_LINK%%" || (
+    CALL Common.Echo.CMD "93;41" "***** 错误: 删除链接失败! *****"
     EXIT /B 1
   )
   IF /I "%_EXISTED%" == "Backup" IF EXIST "%_LINK%.BACKUP" (
-    MOVE /Y "%_LINK%.BACKUP" "%_LINK%" 1>NUL || (
-      ECHO.
-      CALL Common.Echo.CMD "93;41" "***** 错误: 恢复`Target`失败! *****"
+    ::  因为MOVE命令无法处理`丢失目标的软链接`, 只能使用RENAME命令.
+    CALL Path.GetFileNameExt.CMD "%%_LINK%%"
+    CALL RENAME "%%_LINK%%.BACKUP" "%%@%%" 1>NUL || (
+      CALL Common.Echo.CMD "93;41" "***** 错误: 恢复备份失败! *****"
       EXIT /B 1
     )
   )
 ) || (
-  ECHO.
-  CALL Common.Echo.CMD "94" "不是链接, 跳过."
+  CALL Common.Echo.CMD "94" "跳过执行."
   EXIT /B 0
 )
-ECHO.
-CALL Common.Echo.CMD "92" "操作完成."
+CALL Common.Echo.CMD "92" "执行完成."
 EXIT /B 0
+
+:REMOVE
+CALL File.HasAttrib.CMD "%~1" "D" && (
+  RD /S /Q "%~1" 1>NUL || EXIT /B 1
+) || (
+  DEL /F /Q "%~1" 1>NUL || EXIT /B 1
+)
+EXIT /B 0
+
+:IS_LINK
+CALL File.HasAttrib.CMD "%~1" "L" && EXIT /B 0
+CALL File.IsHardLink.CMD "%~1" && EXIT /B 0
+EXIT /B 1
