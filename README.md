@@ -2,7 +2,7 @@
 
 批量添加 Windows 符号链接的工具.
 
-根据配置文件设置 Windows 符号链接, 当前工作目录为配置文件所在目录.
+根据配置文件创建 Windows 符号链接, 当前工作目录为配置文件所在目录.
 
 ## 配置文件
 
@@ -92,7 +92,7 @@ Target=dir/or/file
 
 ## 命令行:
 
-命令行: WinLink.cmd [配置文件[.ini]] [/o|-o <1|2|3>] [/h|-h]
+命令行: WinLink.cmd [配置文件[.ini]] [/o^|-o ^<1^|2^|3^>] [/NoWait^|-NoWait] [/NoLogo^|-NoLogo] [/NoAnsi^|-NoAnsi] [/h^|-h]
 
 - 配置文件
 
@@ -101,6 +101,18 @@ Target=dir/or/file
 - `/o` | `-o`
 
   指定要执行的操作. 必选参数, `1`创建符号链接, `2`移除符号链接, `3`退出. 默认为等待用户选择.
+
+- `/NoWait` | `-NoWait`
+
+  执行结束时无等待.
+
+- `/NoLogo` | `-NoLogo`
+
+  执行前不显示 Logo.
+
+- `/NoAnsi` | `-NoAnsi`
+
+  禁用转义序列显示.
 
 - `/h` | `-h`
 

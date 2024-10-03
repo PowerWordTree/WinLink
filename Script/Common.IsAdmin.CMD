@@ -9,7 +9,9 @@
 
 NET SESSION 1>NUL 2>&1
 IF "%ERRORLEVEL%" == "0" (
-  SET "@=TRUE" & EXIT /B 0
+  SET "@=TRUE"
+  EXIT /B 0
 ) ELSE (
-  SET "@=FALSE" & EXIT /B 1
+  SET "@=FALSE"
+  EXIT /B 1
 )
